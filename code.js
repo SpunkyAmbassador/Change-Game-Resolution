@@ -1,51 +1,16 @@
 import { RPM } from "../path.js"
 
 /**
- * This plugin changes the resolution of the game.
- * It reads the saved resolution from config.json and sets the window size.
- * It also allows to set the resolution and full screen mode.
+ * This plugin allows to set the window resolution and full screen mode.
  */
 
 // Plugin name
 const pluginName = "Change Game Resolution";
 
-// Path to config.json
-const configPath = RPM.Common.Paths.PLUGINS + pluginName + "/config.json";
-
 // Require the file system module
 const fs = require('fs');
 
-// In first playthrough there is no config file. I used try catch to avoid crashing.
-try {
-    // Read the screen configuration from config.json
-    const screenConfig = require(configPath)
-
-    /**
-     * Initialize the plugin by setting the window size to the saved size.
-     * Sleep function is used to allow for the game to load.
-     */
-    async function init() {
-        await sleep(100);
-        setWindowSize(screenConfig["width"], screenConfig["height"], screenConfig["fullscreen"]);
-    }
-
-    /**
-     * Sleep function to delay the execution of the code.
-     * @param {number} ms - The time to sleep in milliseconds.
-     * @returns {Promise} A promise that resolves after the specified time.
-     */
-    function sleep(ms) {
-        return new Promise((resolve) => {
-            setTimeout(resolve, ms);
-        });
-    }
-
-    // Sleep function to allow for the game to load
-    init()
-
-} catch (e) {
-    console.log(e);
-}
+const systemJSONFilePath = RPM.Common.Paths.FILE_SYSTEM;
 
 /**
  * Set the window size to the specified width, height and full screen mode.
@@ -54,13 +19,20 @@ try {
  * @param {boolean} fullscreen - Indicates if the window is in full screen mode.
  */
 function setWindowSize(width, height, fullscreen) {
-    // Running function two times because of a bug where screen size becomes less than game size which leads to game getting cropped
+    // Read the JSON file
+    const jsonData = fs.readFileSync(systemJSONFilePath, 'utf8');
+    const data = JSON.parse(jsonData);
+
+    // Modify the values
+    data.sh = height;
+    data.sw = width;
+    data.isw = !fullscreen;
+
+    // Write the updated object back to the file
+    fs.writeFileSync(systemJSONFilePath, JSON.stringify(data, null, 2));
+
+    // Update the window size
     RPM.Datas.Systems.updateWindowSize(width, height, fullscreen);
-    RPM.Datas.Systems.updateWindowSize(width, height, fullscreen);
-    // Save the new screen configuration to config.json
-    fs.writeFile(configPath, JSON.stringify({ width: width, height: height, fullscreen: fullscreen }), (e) => {
-        if (e) console.log(e);
-    })
 }
 
 /**
@@ -78,4 +50,3 @@ RPM.Manager.Plugins.registerCommand(pluginName, "Set Resolution", (Width, Height
 RPM.Manager.Plugins.registerCommand(pluginName, "Set Full Screen", () => {
     setWindowSize(0, 0, true);
 });
-
